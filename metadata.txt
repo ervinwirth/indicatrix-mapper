@@ -12,7 +12,7 @@ qgisMinimumVersion=2.99
 qgisMaximumVersion=3.99
 description=The plugin introduces ellipsoidal or spherical caps which can give a down-to-earth Tissot-indicatrix realization. The indicatrix uses constant radius ellipsoidal caps (calculated by Vincenty's formula) instead of the original infinitesimal small Tissot circles. These caps are able to transform on the fly from a reference ellipsoid to a selected project coordinate reference system. The user can study the distortions of the caps in a blink, such conclusions can be drawn as the projection is conformal or equal-area.
 about=The extent and resolution of the caps and the graticule are able to define. The segments refers to the preciseness of the geometrical elements. The radius parameter means the magnitude of projecting caps, it can be given in kilometer or degree dimension. In case of adding more layers untick the 'Simplify geometry' option at the Rendering tab of layer properties. Analytical distortion parameters (h, k, s, ω) are derived using the Quasi Indicatrix method (Bildirici, 2015). QGIS contains approximately 2700 categorized projections, you can test the effects of the projections for your Country as well. Check the homepage or look after 'QGIS Map Projections' tutorial video by BME FMT on YouTube for further detail.
-version=2.0.2
+version=3.0.0
 author=Ervin Wirth
 email=wirth.ervin@mailbox.org
 
@@ -21,10 +21,10 @@ email=wirth.ervin@mailbox.org
 # Recommended items:
 
 # Uncomment the following line and add your changelog:
-# changelog=
+changelog=3.0.0: Major update introducing the Quasi Indicatrix method (Bildirici, 2015) for numerical calculation of distortion parameters (h, k, s, omega). Refined user interface with improved vertical alignment and streamlined controls. Updated coordinate transformation logic for better compatibility with modern QGIS versions.
 
 # Tags are comma separated with spaces allowed
-tags=indicatrix, indikatrix, distortions, tissot, tiss, cap, graticule
+tags=indicatrix, distortions, tissot, quasi-indicatrix, geodesy, map-projections
 
 homepage=https://www.researchgate.net/publication/284284601_Real-time_projection_visualisation_with_Indicatrix_Mapper_QGIS_Plugin
 tracker=https://github.com/ervinwirth/indicatrix-mapper/issues
