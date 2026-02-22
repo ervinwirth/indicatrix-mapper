@@ -26,7 +26,7 @@ changelog=3.0.0: Major update introducing the Quasi Indicatrix method (Bildirici
 # Tags are comma separated with spaces allowed
 tags=indicatrix, distortions, tissot, quasi-indicatrix, geodesy, map-projections
 
-homepage=https://www.researchgate.net/publication/284284601_Real-time_projection_visualisation_with_Indicatrix_Mapper_QGIS_Plugin
+homepage=https://github.com/ervinwirth/indicatrix-mapper
 tracker=https://github.com/ervinwirth/indicatrix-mapper/issues
 repository=https://github.com/ervinwirth/indicatrix-mapper
 category=Vector
