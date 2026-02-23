@@ -6,7 +6,7 @@ A QGIS plugin to visualize and analyze map projection distortions using **Quasi-
 
 ## Overview
 
-The **Indicatrix Mapper** generates dynamic ellipses that represent the local distortion of map projections. Unlike traditional finite "caps," this plugin uses numerical derivatives (the **Quasi Indicatrix** method) to calculate the exact scale factors ($h, k$), area distortion ($s$), angular deformation ($\omega$), and the principal axes ($a, b$) with their specific orientation.
+The **Indicatrix Mapper** generates dynamic ellipses that represent the local distortion of map projections. Using numerical derivatives (the **Quasi Indicatrix** method), this plugin calculates the exact scale factors ($h, k$), area distortion ($s$), angular deformation ($\omega$), and the principal axes ($a, b$) with their specific orientation.
 
 These indicatrices are rendered using QGIS point symbology, allowing them to:
 - Update **instantaneously** when the project CRS is changed.
@@ -17,7 +17,7 @@ These indicatrices are rendered using QGIS point symbology, allowing them to:
 
 - **Real-time Distortions:** Scale, area, and angular distortion attributes are recalculated automatically whenever you change the map projection.
 - **Dynamic Symbology:** Ellipses are rotated and scaled via data-defined overrides based on the calculated principal axes of the Tissot indicatrix.
-- **Customizable Grids:** Define the extent, resolution, and visual radius of the indicatrices.
+- **Customizable Grids:** Define the extent and resolution of the indicatrix grid.
 - **Modern API Compatibility:** Fully compatible with QGIS 3.x (using `QMetaType`, `setStrokeColor`, and other modern classes).
 - **Comprehensive Data:** The attribute table provides $h, k, s, \omega, a_{ind}, b_{ind}$ and the rotation angle for every point.
 
@@ -41,7 +41,7 @@ This approach allows the plugin to handle any projection supported by QGIS/PROJ 
 2. Set your desired extent and resolution (latitude/longitude steps).
 3. Define the **radius** (in km or degrees) to control the visual size of the ellipses.
 4. Click **Run!** to generate the indicatrix and graticule layers.
-5. Change the **Project CRS** (bottom-right of the QGIS window) to see the ellipses warp and rotate in real-time.
+5. Change the **Project CRS** (bottom-right of the QGIS window) to see the ellipses rotate and scale in real-time.
 
 ---
 **Author:** Ervin Wirth  
