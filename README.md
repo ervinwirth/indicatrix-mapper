@@ -32,7 +32,7 @@ This approach allows the plugin to handle any projection supported by QGIS/PROJ 
 
 1. Clone or download this repository.
 2. Link or copy the folder into your QGIS profile's plugin directory:
-   - `AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\IndicatrixMapper`
+   - `AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\tiss`
 3. Restart QGIS and enable the plugin from the **Plugin Manager**.
 
 ## Usage
