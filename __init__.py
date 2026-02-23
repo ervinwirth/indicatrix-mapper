@@ -3,13 +3,14 @@
 /***************************************************************************
  IndicatrixMapper
                                  A QGIS plugin
-The plugin introduces ellipsoidal or spherical caps which can give a
-down-to-earth Tissot-indicatrix realization. The Tissot-indicatrix uses constant
-radius ellipsoidal caps (calculated by Vincenty's formula) instead of the original
-infinitesimal small Tissot circles. These caps are able to transform on the fly
-from a reference ellipsoid to a selected project coordinate reference system.
-The user can study the distortions of the caps in a blink, such conclusions
-can be drawn as the projection is conformal or equal-area.
+The plugin generates Quasi-Tissot Indicatrices as dynamic ellipses to visualize
+map projection distortions. Using numerical derivatives (Quasi Indicatrix method),
+it calculates precise scale factors and rotation angles for any project CRS.
+Unlike traditional finite caps, these point-based indicatrices provide an
+analytically exact representation of local distortion, updating in real-time
+as the project projection changes. Users can instantly analyze conformality,
+equivalence, and angular deformation through both visual ellipses and
+detailed attribute data.
                              -------------------
         begin                : 2015-03-15
         git sha              : $Format:%H$

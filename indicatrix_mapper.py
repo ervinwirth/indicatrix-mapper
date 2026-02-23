@@ -3,13 +3,14 @@
 /***************************************************************************
  IndicatrixMapperDialog
                                  A QGIS plugin
-The plugin introduces ellipsoidal or spherical caps which can give a
-down-to-earth Tissot-indicatrix realization. These caps use constant
-radius ellipsoidal caps (calculated by Vincenty's formula) instead of the original
-infinitesimal small Tissot circles. These caps are able to transform on the fly
-from a reference ellipsoid to a selected project coordinate reference system.
-The user can study the distortions of the caps in a blink, such conclusions
-can be drawn as the projection is conformal or equal-area.
+The plugin generates Quasi-Tissot Indicatrices as dynamic ellipses to visualize
+map projection distortions. Using numerical derivatives (Quasi Indicatrix method),
+it calculates precise scale factors and rotation angles for any project CRS.
+Unlike traditional finite caps, these point-based indicatrices provide an
+analytically exact representation of local distortion, updating in real-time
+as the project projection changes. Users can instantly analyze conformality,
+equivalence, and angular deformation through both visual ellipses and
+detailed attribute data.
                              -------------------
         begin                : 2015-03-15
         git sha              : $Format:%H$
@@ -120,6 +121,9 @@ class IndicatrixMapper:
         k_idx = layer.fields().indexOf("k")
         s_idx = layer.fields().indexOf("s")
         omega_idx = layer.fields().indexOf("omega")
+        a_ind_idx = layer.fields().indexOf("a_ind")
+        b_ind_idx = layer.fields().indexOf("b_ind")
+        angle_idx = layer.fields().indexOf("angle")
         lon_idx = layer.fields().indexOf("lon")
         lat_idx = layer.fields().indexOf("lat")
         
@@ -131,12 +135,16 @@ class IndicatrixMapper:
             lon = feature.attribute(lon_idx)
             lat = feature.attribute(lat_idx)
             
-            h, k, s, omega = calculate_indicatrix_params(lon, lat, transform, a, b, delta)
+            h, k, s, omega, a_ind, b_ind, angle = calculate_indicatrix_params(lon, lat, transform, a, b, delta)
             
             layer.changeAttributeValue(feature.id(), h_idx, h)
             layer.changeAttributeValue(feature.id(), k_idx, k)
             layer.changeAttributeValue(feature.id(), s_idx, s)
             layer.changeAttributeValue(feature.id(), omega_idx, omega)
+            if a_ind_idx != -1:
+                layer.changeAttributeValue(feature.id(), a_ind_idx, a_ind)
+                layer.changeAttributeValue(feature.id(), b_ind_idx, b_ind)
+                layer.changeAttributeValue(feature.id(), angle_idx, angle)
             
         layer.commitChanges()
 

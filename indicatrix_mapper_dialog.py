@@ -3,13 +3,14 @@
 /***************************************************************************
  IndicatrixMapperDialog
                                  A QGIS plugin
-The plugin introduces ellipsoidal or spherical caps which can give a
-down-to-earth Tissot-indicatrix realization. These caps use constant
-radius ellipsoidal caps (calculated by Vincenty's formula) instead of the original
-infinitesimal small Tissot circles. These caps are able to transform on the fly
-from a reference ellipsoid to a selected project coordinate reference system.
-The user can study the distortions of the caps in a blink, such conclusions
-can be drawn as the projection is conformal or equal-area.
+The plugin generates Quasi-Tissot Indicatrices as dynamic ellipses to visualize
+map projection distortions. Using numerical derivatives (Quasi Indicatrix method),
+it calculates precise scale factors and rotation angles for any project CRS.
+Unlike traditional finite caps, these point-based indicatrices provide an
+analytically exact representation of local distortion, updating in real-time
+as the project projection changes. Users can instantly analyze conformality,
+equivalence, and angular deformation through both visual ellipses and
+detailed attribute data.
                              -------------------
         begin                : 2015-03-15
         git sha              : $Format:%H$
@@ -40,6 +41,7 @@ def calculate_indicatrix_params(lon, lat, transform, a, b, delta=0.0001):
     """Calculate distortion parameters using numerical derivatives.
     Based on the Quasi Indicatrix method by Bildirici, Ö. G. (2015).
     Uses Central Difference for O(delta^2) accuracy.
+    Returns: h, k, s, omega, a_ind, b_ind, rotation_angle
     """
     try:
         # Increment points for Central Difference
@@ -67,6 +69,7 @@ def calculate_indicatrix_params(lon, lat, transform, a, b, delta=0.0001):
         ds_parallel_ellips = numpy.radians(2 * delta) * N * numpy.cos(lat_rad)
         
         # Numerical derivatives using Central Difference
+        # Columns of Jacobian: image of unit North vector, image of unit East vector
         dx_dphi = (pp_lat_p.x() - pp_lat_m.x()) / ds_meridian_ellips
         dy_dphi = (pp_lat_p.y() - pp_lat_m.y()) / ds_meridian_ellips
         dx_dlam = (pp_lon_p.x() - pp_lon_m.x()) / ds_parallel_ellips
@@ -86,10 +89,22 @@ def calculate_indicatrix_params(lon, lat, transform, a, b, delta=0.0001):
         b_ind = (a_prime - b_prime) / 2
         
         omega = 2 * numpy.degrees(numpy.arcsin((a_ind - b_ind) / (a_ind + b_ind)))
+
+        # Rotation angle for the semi-major axis
+        # Matrix J = [[dx_dphi, dx_dlam], [dy_dphi, dy_dlam]]
+        # J * J^T = [[m11, m12], [m12, m22]]
+        m11 = dx_dphi**2 + dx_dlam**2
+        m12 = dx_dphi * dy_dphi + dx_dlam * dy_dlam
+        m22 = dy_dphi**2 + dy_dlam**2
         
-        return float(h), float(k), float(s), float(omega)
+        angle_rad = 0.5 * numpy.arctan2(2 * m12, m11 - m22)
+        # QGIS symbol rotation is degrees clockwise from North (Y-axis)
+        # angle_rad is CCW from East (X-axis)
+        rotation_qgis = 90 - numpy.degrees(angle_rad)
+        
+        return float(h), float(k), float(s), float(omega), float(a_ind), float(b_ind), float(rotation_qgis)
     except:
-        return 1.0, 1.0, 1.0, 0.0
+        return 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0
 
 
 # FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -136,11 +151,8 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
         self.spbDelta.setStepType(QAbstractSpinBox.AdaptiveDecimalStepType)
         self.spbDelta.setObjectName("spbDelta")
 
-        # Move Auxiliary points checkbox further down to avoid overlap
-        self.chkBoxAux.setGeometry(QRect(460, 175, 130, 20))
-        
-        # Move Run button further down
-        self.btnRun.setGeometry(QRect(460, 215, 131, 23))
+        # Position Run button
+        self.btnRun.setGeometry(QRect(460, 175, 131, 23))
 
         self.inputs()
 
@@ -176,9 +188,8 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
         self.spbLatMax.valueChanged.connect(self.max_lat_change)		
     def inputs(self):
         # circle parameters
-        self.res = self.spbCircleSeg.value()  # circle segments no.
         self.resl = self.spbLineSeg.value()  # line segments no.
-        self.radius = self.spbRadiusKm.value()  # Tissot cap radius
+        self.radius = self.spbRadiusKm.value()  # Tissot indicatrix radius
         self.delta = self.spbDelta.value() # numerical delta
         # latitude resolution
         self.maxlat = self.spbLatMax.value()
@@ -195,7 +206,6 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
         # poles checkbox
         self.a = self.spbSemimajor.value()
         self.b = self.spbSemiminor.value()
-        self.auxp = self.chkBoxAux.isChecked()
 
     def km_to_deg(self):
         dg = self.spbRadiusKm.value() / (2 * (self.a / 1000) * numpy.pi) * 360
@@ -228,34 +238,53 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
 
     def cap_layer(self):
         source_crs = self.get_source_crs(self.a, self.b)
-        self.vl = QgsVectorLayer("Polygon?crs=" + source_crs.toWkt(), "caps", "memory")
+        self.vl = QgsVectorLayer("Point?crs=" + source_crs.toWkt(), "indicatrices", "memory")
         self.pr = self.vl.dataProvider()
         self.vl.startEditing()
         self.pr.addAttributes([
-            QgsField("lon", QVariant.Double),
-            QgsField("lat", QVariant.Double),
-            QgsField("h", QVariant.Double),
-            QgsField("k", QVariant.Double),
-            QgsField("s", QVariant.Double),
-            QgsField("omega", QVariant.Double)
+            QgsField("lon", QMetaType.Double),
+            QgsField("lat", QMetaType.Double),
+            QgsField("h", QMetaType.Double),
+            QgsField("k", QMetaType.Double),
+            QgsField("s", QMetaType.Double),
+            QgsField("omega", QMetaType.Double),
+            QgsField("a_ind", QMetaType.Double),
+            QgsField("b_ind", QMetaType.Double),
+            QgsField("angle", QMetaType.Double)
         ])
-        # check auxiliary points
-        if self.auxp:
-            self.vl2 = QgsVectorLayer("MultiPoint?crs=" + crs.toWkt(), "auxpoints", "memory")
-            self.pr2 = self.vl2.dataProvider()
-            self.vl2.startEditing()
-            self.pr2.addAttributes([QgsField("lon", QVariant.Double), QgsField("lat", QVariant.Double)])
 
         self.generate_caps()
         self.vl.commitChanges()
         self.vl.updateExtents()
-        mNoSimplification = QgsVectorSimplifyMethod()
-        mNoSimplification.setSimplifyHints(QgsVectorSimplifyMethod.NoSimplification)
-        self.vl.setSimplifyMethod(mNoSimplification)
+        
+        # Setup Ellipse Symbology
+        symbol = QgsMarkerSymbol.createSimple({'name': 'circle', 'color': '255,0,0,0', 'outline_color': 'black'})
+        ellipse_layer = QgsEllipseSymbolLayer()
+        ellipse_layer.setShape(QgsEllipseSymbolLayer.Circle)
+        ellipse_layer.setSymbolWidthUnit(QgsUnitTypes.RenderMapUnits)
+        ellipse_layer.setSymbolHeightUnit(QgsUnitTypes.RenderMapUnits)
+        ellipse_layer.setStrokeColor(QColor(255, 0, 0))
+        ellipse_layer.setFillColor(QColor(255, 0, 0, 50))
+        ellipse_layer.setStrokeWidth(0.3)
+        ellipse_layer.setStrokeWidthUnit(QgsUnitTypes.RenderMillimeters)
+        
+        # Data defined size and rotation
+        # The radius is in km, so 2*radius*1000 gives diameter in meters
+        diameter = self.radius * 2000
+        # Set Height as the semi-major axis (a_ind) and Width as semi-minor (b_ind)
+        # At 0 rotation in QGIS, Height is vertical (North-South)
+        ellipse_layer.setDataDefinedProperty(QgsSymbolLayer.PropertyWidth, QgsProperty.fromExpression(f"b_ind * {diameter}"))
+        ellipse_layer.setDataDefinedProperty(QgsSymbolLayer.PropertyHeight, QgsProperty.fromExpression(f"a_ind * {diameter}"))
+        ellipse_layer.setDataDefinedProperty(QgsSymbolLayer.PropertyAngle, QgsProperty.fromField("angle"))
+        
+        symbol.changeSymbolLayer(0, ellipse_layer)
+        self.vl.setRenderer(QgsSingleSymbolRenderer(symbol))
+
         self.vl.setCustomProperty("indicatrix", "caps")
         self.vl.setCustomProperty("ellipsoid_a", self.a)
         self.vl.setCustomProperty("ellipsoid_b", self.b)
         self.vl.setCustomProperty("numerical_delta", self.delta)
+        self.vl.setCustomProperty("radius_km", self.radius)
         
         # Setup labeling
         settings = QgsPalLayerSettings()
@@ -273,21 +302,13 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
         
         QgsProject.instance().addMapLayer(self.vl)
 
-        if self.auxp:
-            self.vl2.commitChanges()
-            self.vl2.updateExtents()
-            mNoSimplification = QgsVectorSimplifyMethod()
-            mNoSimplification.setSimplifyHints(QgsVectorSimplifyMethod.NoSimplification)
-            self.vl2.setSimplifyMethod(mNoSimplification)
-            QgsProject.instance().addMapLayer(self.vl2)
-
     def graticule_layer(self):
         source_crs = self.get_source_crs(self.a, self.b)
         self.vl = QgsVectorLayer("LineString?crs=" + source_crs.toWkt(), "graticule", "memory")
         self.pr = self.vl.dataProvider()
         # changes are only possible when editing the layer
         self.vl.startEditing()
-        self.pr.addAttributes([QgsField("lon", QVariant.Double), QgsField("lat", QVariant.Double)])
+        self.pr.addAttributes([QgsField("lon", QMetaType.Double), QgsField("lat", QMetaType.Double)])
         # calculate graticule lines
         self.generate_graticule()
         # commit to stop editing the layer
@@ -303,66 +324,14 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
         QgsProject.instance().addMapLayer(self.vl)
 
     def cap_calc(self):
-        lon1 = self.lon * .1745329251994329577e-1 # intial longitude in radians
-        lat1 = self.lat * .1745329251994329577e-1  #intial latitude in radians
-        s = self.radius * 1000
-        a = self.a
-        b = self.b
-        f = (a - b) / a
-        # set up inner points
-        pointlist = []
-        # necessary azimuth domains
-        alphalist = list(numpy.linspace( -numpy.pi, numpy.pi, num = self.res, endpoint = False))
-        # credit Michael Kleder, 2007
-        for alpha1 in alphalist:
-            sinAlpha1 = numpy.sin(alpha1)
-            cosAlpha1 = numpy.cos(alpha1)
-            tanU1 = (1 - f) * numpy.tan(lat1)
-            cosU1 = 1 / numpy.sqrt(1 + tanU1 * tanU1)
-            sinU1 = tanU1 * cosU1
-            sigma1 = numpy.arctan2(tanU1, cosAlpha1)
-            sinAlpha = cosU1 * sinAlpha1
-            cosSqAlpha = 1 - sinAlpha * sinAlpha
-            uSq = cosSqAlpha * (a * a - b * b) / (b * b)
-            A = 1 + uSq / 16384 * (4096 + uSq * ( -768 + uSq * (320 - 175 * uSq)))
-            B = uSq / 1024 * (256 + uSq * ( -128 + uSq * (74 - 47 * uSq)))
-            sigma = s / (b * A)
-            sigmaP = 2 * numpy.pi
-            while (numpy.abs(sigma - sigmaP) > 1e-12):
-                cos2SigmaM = numpy.cos(2 * sigma1 + sigma)
-                sinSigma = numpy.sin(sigma)
-                cosSigma = numpy.cos(sigma)
-                deltaSigma = B * sinSigma * (cos2SigmaM + B / 4 * (cosSigma * ( -1 + 2 * cos2SigmaM * cos2SigmaM) - B / 6 * cos2SigmaM * ( - 3 + 4 * sinSigma * sinSigma) * ( - 3 + 4 * cos2SigmaM * cos2SigmaM)))
-                sigmaP = sigma
-                sigma = s / (b * A) + deltaSigma
-            tmp = sinU1 * sinSigma - cosU1 * cosSigma * cosAlpha1
-            lat2 = numpy.arctan2(sinU1 * cosSigma + cosU1 * sinSigma * cosAlpha1, (1 - f) * numpy.sqrt(sinAlpha * sinAlpha + tmp * tmp))
-            lam = numpy.arctan2(sinSigma * sinAlpha1, cosU1 * cosSigma - sinU1 * sinSigma * cosAlpha1)
-            C = f / 16 * cosSqAlpha * (4 + f * (4 - 3 * cosSqAlpha))
-            L = lam - (1 - C) * f * sinAlpha * (sigma + C * sinSigma * (cos2SigmaM + C * cosSigma * ( - 1 + 2 * cos2SigmaM * cos2SigmaM)))
-            lon2 = lon1 + L
-            # output degrees
-            lat2 = lat2 * 57.295779513082322865
-            lon2 = lon2 * 57.295779513082322865
-            lon2 = numpy.mod(lon2,360) # follow [0,360] convention
-            # longitude correction
-            if lon2 > 180:
-                lon2 = lon2 - 360
-            pointlist.append(QgsPointXY(lon2, lat2))
-        
         # Calculate distortion parameters at center
-        h, k, s, omega = calculate_indicatrix_params(self.lon, self.lat, self.transform, self.a, self.b, self.delta)
+        h, k, s, omega, a_ind, b_ind, angle = calculate_indicatrix_params(self.lon, self.lat, self.transform, self.a, self.b, self.delta)
         
         # add a feature
         fet = QgsFeature()
-        fet.setGeometry(QgsGeometry.fromPolygonXY([pointlist]))
-        fet.setAttributes([float(self.lon), float(self.lat), h, k, s, omega])
+        fet.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(self.lon, self.lat)))
+        fet.setAttributes([float(self.lon), float(self.lat), h, k, s, omega, a_ind, b_ind, angle])
         self.pr.addFeatures([fet])
-        if self.auxp:
-            fet2 = QgsFeature()
-            fet2.setGeometry(QgsGeometry.fromMultiPointXY(pointlist))
-            fet2.setAttributes([float(self.lon), float(self.lat)])
-            self.pr2.addFeatures([fet2])
 
     def generate_caps(self):
         # Setup transformation to current project CRS for distortion calculation
