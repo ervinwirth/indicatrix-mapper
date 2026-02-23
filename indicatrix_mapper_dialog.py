@@ -6,11 +6,11 @@
 The plugin generates Quasi-Tissot Indicatrices as dynamic ellipses to visualize
 map projection distortions. Using numerical derivatives (Quasi Indicatrix method),
 it calculates precise scale factors and rotation angles for any project CRS.
-Unlike traditional finite caps, these point-based indicatrices provide an
-analytically exact representation of local distortion, updating in real-time
-as the project projection changes. Users can instantly analyze conformality,
-equivalence, and angular deformation through both visual ellipses and
-detailed attribute data.
+These point-based indicatrices provide an analytically exact representation
+of local distortion, updating in real-time as the project projection changes.
+Users can instantly analyze conformality, equivalence, and angular deformation
+through both visual ellipses and detailed attribute data.
+
                              -------------------
         begin                : 2015-03-15
         git sha              : $Format:%H$
@@ -233,10 +233,10 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
 
     def fun_execute(self):
         self.inputs()
-        self.cap_layer()
+        self.indicatrix_layer()
         self.graticule_layer()
 
-    def cap_layer(self):
+    def indicatrix_layer(self):
         source_crs = self.get_source_crs(self.a, self.b)
         self.vl = QgsVectorLayer("Point?crs=" + source_crs.toWkt(), "indicatrices", "memory")
         self.pr = self.vl.dataProvider()
@@ -253,7 +253,7 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
             QgsField("angle", QMetaType.Double)
         ])
 
-        self.generate_caps()
+        self.generate_indicatrices()
         self.vl.commitChanges()
         self.vl.updateExtents()
         
@@ -280,7 +280,7 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
         symbol.changeSymbolLayer(0, ellipse_layer)
         self.vl.setRenderer(QgsSingleSymbolRenderer(symbol))
 
-        self.vl.setCustomProperty("indicatrix", "caps")
+        self.vl.setCustomProperty("indicatrix", "ellipses")
         self.vl.setCustomProperty("ellipsoid_a", self.a)
         self.vl.setCustomProperty("ellipsoid_b", self.b)
         self.vl.setCustomProperty("numerical_delta", self.delta)

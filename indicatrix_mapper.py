@@ -6,11 +6,11 @@
 The plugin generates Quasi-Tissot Indicatrices as dynamic ellipses to visualize
 map projection distortions. Using numerical derivatives (Quasi Indicatrix method),
 it calculates precise scale factors and rotation angles for any project CRS.
-Unlike traditional finite caps, these point-based indicatrices provide an
-analytically exact representation of local distortion, updating in real-time
-as the project projection changes. Users can instantly analyze conformality,
-equivalence, and angular deformation through both visual ellipses and
-detailed attribute data.
+These point-based indicatrices provide an analytically exact representation
+of local distortion, updating in real-time as the project projection changes.
+Users can instantly analyze conformality, equivalence, and angular deformation
+through both visual ellipses and detailed attribute data.
+
                              -------------------
         begin                : 2015-03-15
         git sha              : $Format:%H$
