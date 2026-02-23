@@ -233,10 +233,10 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
 
     def fun_execute(self):
         self.inputs()
-        self.indicatrix_layer()
+        self.cap_layer()
         self.graticule_layer()
 
-    def indicatrix_layer(self):
+    def cap_layer(self):
         source_crs = self.get_source_crs(self.a, self.b)
         self.vl = QgsVectorLayer("Point?crs=" + source_crs.toWkt(), "indicatrices", "memory")
         self.pr = self.vl.dataProvider()
@@ -253,7 +253,7 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
             QgsField("angle", QMetaType.Double)
         ])
 
-        self.generate_indicatrices()
+        self.generate_caps()
         self.vl.commitChanges()
         self.vl.updateExtents()
         
@@ -280,7 +280,7 @@ class IndicatrixMapperDialog(QDialog, Ui_IndicatrixMapper):
         symbol.changeSymbolLayer(0, ellipse_layer)
         self.vl.setRenderer(QgsSingleSymbolRenderer(symbol))
 
-        self.vl.setCustomProperty("indicatrix", "ellipses")
+        self.vl.setCustomProperty("indicatrix", "caps")
         self.vl.setCustomProperty("ellipsoid_a", self.a)
         self.vl.setCustomProperty("ellipsoid_b", self.b)
         self.vl.setCustomProperty("numerical_delta", self.delta)
